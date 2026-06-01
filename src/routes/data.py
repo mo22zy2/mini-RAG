@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from helpers.config import get_settings,Settings
 from controllers import DataController,ProjectController
 from models import Response
+from .schemes.data import ProccessRequest
 import os
 import aiofiles
 import logging
@@ -32,8 +33,9 @@ async def upload_data(project_id:str,
     
     os.makedirs(project_dir_path, exist_ok=True)
     
-    file_path=data_controller.generate_unique_filename(original_file_name=file.filename,
-                                                       project_id=project_id)
+    file_path,file_id=data_controller.generate_unique_filepath(original_file_name=file.filename,
+                                                       project_id=project_id,
+                                                       )
     try:
         
         async with aiofiles.open(file_path,"wb")as f:
@@ -50,7 +52,17 @@ async def upload_data(project_id:str,
         
     return JSONResponse(
         content={
-            "signal":Response.FILE_UPLOAD_SUCCED.value
+            "signal":Response.FILE_UPLOAD_SUCCED.value,
+            "file_id":file_id
         }
     )
+    
+    
+@data_router.post("/process/{project_id}")
+
+async def process_endpoint(project_id:str,process_request:ProccessRequest):
+    file_id=process_request.file_id
+    
+    return file_id
+
 
