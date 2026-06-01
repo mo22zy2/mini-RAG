@@ -7,4 +7,5 @@ class Response(Enum):
     FILE_SIZE_EXCEEDED="File Size is Bigger than 16Mb"
     FILE_UPLOAD_SUCCED="File upload Succeed"
     FILE_VALIDATED_FALIED="File validate Failed"
-
+    FILE_PROCESSING_FALIED="File Processing Failed"
+    FILE_PROCESSING_SUCCESS="File Processing SUCESS"
