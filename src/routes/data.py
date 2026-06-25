@@ -29,7 +29,7 @@ async def upload_data(
         db_client=request.app.db_client
     )
     
-    project=project_model.get_project_or_create_one(project_id=project_id)
+    project= await project_model.get_project_or_create_one(project_id=project_id)
     
     data_controller=DataController()
     isValid,response_signal = data_controller.validate_upload_file(file=file)
