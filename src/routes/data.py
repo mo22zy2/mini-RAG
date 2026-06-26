@@ -3,8 +3,12 @@ from fastapi.responses import JSONResponse
 from helpers.config import get_settings,Settings
 from controllers import DataController,ProjectController,ProcessController
 from models.ProjectModel import ProjectModel
+from models.ChunkModel import ChunkModel
 from models import Response
 from .schemes.data import ProccessRequest
+from models.db_schemas import DataChunk
+from bson import ObjectId # type: ignore
+
 import os
 import aiofiles
 import logging
@@ -72,11 +76,20 @@ async def upload_data(
     
 @data_router.post("/process/{project_id}")
 
-async def process_endpoint(project_id:str,process_request:ProccessRequest):
+async def process_endpoint(request:Request,project_id:str,process_request:ProccessRequest):
     
     file_id=process_request.file_id
     chunk_size=process_request.chunck_size
     overlap_size=process_request.overlap_size
+    do_reset=process_request.do_reset
+    
+    project_model=ProjectModel(
+        db_client=request.app.db_client
+    )
+    
+    project= await project_model.get_project_or_create_one(project_id=project_id)
+    
+
     
     process_controller=ProcessController(project_id)
     
@@ -94,4 +107,27 @@ async def process_endpoint(project_id:str,process_request:ProccessRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"signal":Response.FILE_PROCESSING_FALIED}
             )
-    return file_chunks
+        
+    file_chunks_records = [
+        DataChunk(
+            chunk_text=chunk.page_content,
+            chunk_metadata=chunk.metadata,
+            chunk_order=i+1,
+            chunk_project_id=ObjectId(project.id)
+    )
+        for i,chunk in enumerate(file_chunks)]
+    
+    chunk_model=ChunkModel(db_client=request.app.db_client)
+    if do_reset==1:
+        _= await chunk_model.delete_chunk_by_project_id(project_id=ObjectId(project.id))
+    
+    no_records= await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+    
+    return JSONResponse(
+        content={
+            "signal":Response.FILE_PROCESSING_SUCCEED.value,
+            "inserted_chunks":no_records,
+            
+        }
+    )
+    
