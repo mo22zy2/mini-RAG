@@ -4,10 +4,12 @@ from helpers.config import get_settings,Settings
 from controllers import DataController,ProjectController,ProcessController
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
+from models.AssetModel import AssetModel
 from models import Response
 from .schemes.data import ProccessRequest
-from models.db_schemas import DataChunk
-from bson import ObjectId # type: ignore
+from models.db_schemas import DataChunk,Asset
+from models.enums.AssetTypeEnum import AssetTypeEnum
+from bson import ObjectId  # type: ignore
 
 import os
 import aiofiles
@@ -65,13 +67,26 @@ async def upload_data(
         )
         
         
+    asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
+    
+    asset_resource=Asset(
+        asset_project_id=ObjectId(project.id),
+        asset_name=file_id,
+        asset_type=AssetTypeEnum.FILE.value,
+        asset_size=os.path.getsize(file_path),
+    )
+    
+    asset_record= await asset_model.create_asset(asset=asset_resource)
+    
+        
     return JSONResponse(
         content={
             "signal":Response.FILE_UPLOAD_SUCCED.value,
-            "file_id":file_id,
+            "file_id":str(asset_record.id),
 
         }
     )
+    
     
     
 @data_router.post("/process/{project_id}")
