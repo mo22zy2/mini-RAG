@@ -9,6 +9,29 @@ class ChunkModel(BaseDataModel):
     def __init__(self, db_client: object):
         super().__init__(db_client=db_client)
         self.collection=self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
+
+    # Now i was facing a problem that the init in Python should not be async, so I created a class method to create an instance of the class and initialize the collection asynchronously.
+    @classmethod
+    async def create_instance(cls, db_client: object):
+        instance = cls(db_client)
+        await instance.init_collection()
+        return instance
+        
+        
+        
+    async def init_collection(self):
+        all_collections=await self.db_client.list_collection_names()
+        
+        if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collections:
+            
+            self.collection = await self.db_client.create_collection(DataBaseEnum.COLLECTION_CHUNK_NAME.value)
+            indexes = DataChunk.get_indexes()
+            for index in indexes:
+                await self.collection.create_index(
+                    index["key"],
+                    name=index["name"],
+                    unique=index["unique"]
+                )
     
     async def create_chunk(self, chunk: DataChunk):
         result = await self.collection.insert_one(chunk.dict())

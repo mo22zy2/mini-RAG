@@ -1,4 +1,4 @@
-from bson import ObjectId
+from bson import ObjectId # type: ignore
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 
@@ -20,6 +20,7 @@ class Project(BaseModel):
         return value
 
     @field_validator("project_id")
+    
     @classmethod
     def validate_project_id(cls, value: str):
         if not value:
@@ -29,3 +30,16 @@ class Project(BaseModel):
             raise ValueError("project_id must be alphanumeric")
 
         return value
+    
+    
+    @classmethod
+    def get_indexes(cls):
+        return [
+            {
+                "key":[
+                    ("project_id", 1)
+                ],
+                "name": "project_id_index_1",
+                "unique": True
+            }
+        ]
