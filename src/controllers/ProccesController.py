@@ -1,8 +1,8 @@
 from .BaseController import BaseController
 from .ProjectController import ProjectController
-from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import TextLoader # type: ignore
+from langchain_community.document_loaders import PyMuPDFLoader # type: ignore
+from langchain_text_splitters import RecursiveCharacterTextSplitter # type: ignore
 
 from models import ProcessingEnum
 import os
@@ -26,6 +26,10 @@ class ProcessController(BaseController):
             self.project_path,
             file_id
         )
+        
+        if not os.path.exists(file_path):
+            return None
+        
 
         if file_ext == ProcessingEnum.TXT.value:
             return TextLoader(file_path, encoding="utf-8")
@@ -37,10 +41,12 @@ class ProcessController(BaseController):
     
     
     def get_file_content(self,file_id:str):
+        
         loader=self.get_file_loader(file_id=file_id)
         
-        return loader.load()
-    
+        if loader:
+            return loader.load()
+        return None    
     
     def process_file_content(self,file_contnet:list,
             file_id:str,

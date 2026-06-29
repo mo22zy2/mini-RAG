@@ -7,12 +7,12 @@ from datetime import datetime
 
 class Asset(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    id : Optional[str] = Field(default=None, alias="_id")
+    id: Optional[ObjectId] = Field(default=None, alias="_id")
     asset_project_id:ObjectId
     asset_name:str = Field(...,min_length=1)
     asset_type:str = Field(...,min_length=1)
     asset_size:int = Field(ge=0,default=None)
-    asset_config:dict = Field(default=None)
+    asset_config: Optional[dict] = None
     asset_pushed_at:datetime = Field(default_factory=datetime.utcnow) # type: ignore
 
     

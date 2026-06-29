@@ -9,3 +9,6 @@ class Response(Enum):
     FILE_VALIDATED_FALIED="File validate Failed"
     FILE_PROCESSING_FALIED="File Processing Failed"
     FILE_PROCESSING_SUCCEED="File Processing SUCESS"
+    PROCESSING_FAILED="File Processing Failed"
+    NO_FILES_ERROR="Not Found Files"
+    FILE_ID_ERROR="No File Record found with this ID"
