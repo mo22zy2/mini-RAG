@@ -1,9 +1,9 @@
 from enum import Enum
 
 class LLMType(Enum):
-    OPENAI = "openai"
+    OPENAI = "OPENAI"
+    COHERE = "COHERE"
     ANTHROPIC = "anthropic"
-    COHERE = "cohere"
     
     
 class OpenAIEnums(Enum):
@@ -16,3 +16,11 @@ class CoHereEnums(Enum):
     SYSTEM="SYSTEM"
     USER="USER"
     ASSISTANT="ASSISTANT"
+    
+    DOCUMENT="search_document"
+    QUERY="search_query"
+    
+    
+class DoucmentType(Enum):
+    DOCUMENT="document"
+    QUERY="query"

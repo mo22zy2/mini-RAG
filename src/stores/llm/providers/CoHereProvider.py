@@ -1,5 +1,5 @@
 from ..LLMInterface import LLMInterface
-from ..LLMEnums import CoHereEnums
+from ..LLMEnums import CoHereEnums, DocumentType
 import cohere # type: ignore
 import logging
 
@@ -27,10 +27,10 @@ class CoHereProvider(LLMInterface):
          
          
     def set_generation_model(self, model_id: str):
-        self.generation_model = model_id
+        self.generation_model_id = model_id
     
     def set_embedding_model(self, model_id: str):
-        self.embedding_model = model_id
+        self.embedding_model_id = model_id
         
         
     def process_text(self,text:str):
@@ -50,26 +50,65 @@ class CoHereProvider(LLMInterface):
                       temperature: float = None):
         
         if not self.client:
-                self.logger.error("OpenAI client is not initialized.")
+                self.logger.error("Cohere client is not initialized.")
                 return None
             
         if not self.generation_model_id:
             self.logger.error("Generation model ID is not set. Please set it using set_generation_model().")
             return None
         
-        response = self.client.chat.completions.create(
+        # Handle None chat_history
+        chat_history = chat_history if chat_history is not None else []
+        
+        response = self.client.chat(
                 model=self.generation_model_id,
                 chat_history=chat_history,
                 message=self.process_text(prompt),
+                temperature=temperature if temperature is not None else self.default_temperature,
+                max_tokens=max_output_tokens if max_output_tokens is not None else self.default_max_output_tokens
             )
+        if not response or not response.text:
+            self.logger.error("No response returned from Cohere API.")
+            return None
+            
+        return response.text
         
         
     def embed_text(self, text: str, document_type: str = None):
-        # Implement the text embedding logic using the Cohere API
-        pass
-    
-    def construct_prompt(self,prompt:str,role:str):
+        if not self.client:
+            self.logger.error("Cohere client is not initialized.")
+            return None
+            
+        if not self.embedding_model_id:
+            self.logger.error("Embedding model ID is not set. Please set it using set_embedding_model().")
+            return None
+        
+        input_type = CoHereEnums.DOCUMENT.value
+        if document_type == DocumentType.QUERY:
+            input_type = CoHereEnums.QUERY.value
+        
+        response = self.client.embed(
+            model=self.embedding_model_id,
+            text=[self.process_text(text)],
+            input_type=input_type,
+            embedding_type=["float"]
+            )
+        
+        if not response or not response.embeddings or not response.embeddings.float or len(response.embeddings.float) == 0:
+            self.logger.error("No embeddings returned from Cohere API.")
+            return None
+        
+        return response.embeddings.float[0]
+        
+    def construct_prompt(self, prompt: str, role: str):
+            # Validate role against CoHereEnums
+            valid_roles = [CoHereEnums.USER.value, CoHereEnums.CHATBOT.value]
+            
+            if role not in valid_roles:
+                self.logger.warning(f"Invalid role '{role}'. Using default role 'USER'.")
+                role = CoHereEnums.USER.value
+            
             return {
-                "role":role,
-                "text":self.process_text(prompt)
+                "role": role,
+                "text": self.process_text(prompt)
             }
