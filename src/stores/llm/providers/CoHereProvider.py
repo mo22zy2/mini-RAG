@@ -23,14 +23,15 @@ class CoHereProvider(LLMInterface):
         self.logger = logging.getLogger(__name__) #Get a logger for this class (specific to this module)
          
          
-        self.client=cohere.Client(self.api_key)
+        self.client = cohere.Client(self.api_key)
          
          
     def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
     
-    def set_embedding_model(self, model_id: str):
+    def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
+        self.embedding_size = embedding_size
         
         
     def process_text(self,text:str):
@@ -89,20 +90,24 @@ class CoHereProvider(LLMInterface):
         
         response = self.client.embed(
             model=self.embedding_model_id,
-            text=[self.process_text(text)],
+            texts=[self.process_text(text)],
             input_type=input_type,
-            embedding_type=["float"]
-            )
+            embedding_types=["float"]
+)
         
         if not response or not response.embeddings or not response.embeddings.float or len(response.embeddings.float) == 0:
             self.logger.error("No embeddings returned from Cohere API.")
             return None
         
-        return response.embeddings.float[0]
+        return response.embeddings.float_[0]
         
     def construct_prompt(self, prompt: str, role: str):
+        
             # Validate role against CoHereEnums
-            valid_roles = [CoHereEnums.USER.value, CoHereEnums.CHATBOT.value]
+            valid_roles = [
+                CoHereEnums.USER.value,
+                CoHereEnums.ASSISTANT.value
+            ]
             
             if role not in valid_roles:
                 self.logger.warning(f"Invalid role '{role}'. Using default role 'USER'.")

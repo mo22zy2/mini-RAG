@@ -12,3 +12,7 @@ class Response(Enum):
     PROCESSING_FAILED="File Processing Failed"
     NO_FILES_ERROR="Not Found Files"
     FILE_ID_ERROR="No File Record found with this ID"
+    PROJECT_NOT_FOUND_ERROR="project_was_not_found"
+    INSERT_INTO_VECTOR_DB_ERROR="Error while inserting in vector DB"
+    INSERT_INTO_VECTOR_DB_SUCCESS="Done inserting into Vector DB"
+    

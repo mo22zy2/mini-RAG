@@ -13,22 +13,22 @@ class LLMProviderFactory:
             
             
             return OpenAIProvider(
-                api_key=self.config.OPENAI_API_KEY,
-                api_url=self.config.OPENAI_API_URL,
-                default_generation_max_output_tokens=self.config.OPENAI_DEFAULT_GENERATION_MAX_OUTPUT_TOKENS,
-                default_generation_temperature=self.config.OPENAI_DEFAULT_GENERATION_TEMPERATURE,
-                default_max_input_chars=self.config.OPENAI_DEFAULT_MAX_INPUT_CHARS
-            )
+    api_key=self.config.OPENAI_API_KEY,
+    base_url=self.config.OPENAI_BASE_URL,
+    default_max_output_tokens=self.config.GENERATION_DEFAULT_MAX_TOKENS,
+    default_temperature=self.config.GENERATION_DEFAULT_TEMPERATURE,
+    default_max_input_chars=self.config.INPUT_DEFAULT_MAX_CHARS,
+)
         
         
         
         if provider == LLMType.COHERE.value:
             return CoHereProvider(
                 api_key=self.config.COHERE_API_KEY,
-                default_generation_max_output_tokens=self.config.COHERE_DEFAULT_GENERATION_MAX_OUTPUT_TOKENS,
-                default_generation_temperature=self.config.COHERE_DEFAULT_GENERATION_TEMPERATURE,
-                default_max_input_chars=self.config.COHERE_DEFAULT_MAX_INPUT_CHARS
-            )
+                default_max_output_tokens=self.config.GENERATION_DEFAULT_MAX_TOKENS,
+                default_temperature=self.config.GENERATION_DEFAULT_TEMPERATURE,
+                default_max_input_chars=self.config.INPUT_DEFAULT_MAX_CHARS,
+)
             
         
         return None
