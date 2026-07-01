@@ -15,4 +15,6 @@ class Response(Enum):
     PROJECT_NOT_FOUND_ERROR="project_was_not_found"
     INSERT_INTO_VECTOR_DB_ERROR="Error while inserting in vector DB"
     INSERT_INTO_VECTOR_DB_SUCCESS="Done inserting into Vector DB"
-    
+    VECTORDB_COLLECTION_RETREIVED="Vector DB Collection Retrived"
+    SEARCH_IN_VECTOR_DB_ERROR="Error while searching in Vector DB"
+    SEARCH_IN_VECTOR_DB_SUCCESS="Done searching in Vector DB"
