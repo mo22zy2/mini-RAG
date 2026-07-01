@@ -1,6 +1,6 @@
 from ..LLMInterface import LLMInterface
 from ..LLMEnums import OpenAIEnums
-from openai import OpenAI
+from openai import OpenAI # type: ignore
 import logging
 
 class OpenAIProvider(LLMInterface):
@@ -28,10 +28,7 @@ class OpenAIProvider(LLMInterface):
             self.embedding_model_id=model_id
             self.embedding_size=embedding_size
             
-            
-            
-            
-            
+              
         def process_text(self,text:str):
             
             if len(text) > self.default_max_input_chars:
