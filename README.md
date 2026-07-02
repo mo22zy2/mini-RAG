@@ -1,10 +1,13 @@
 <div align="center">
   <h1>Mini RAG</h1>
-  <p>A lightweight document ingestion pipeline for Retrieval-Augmented Generation</p>
+  <p><strong>A lightweight, full-stack Retrieval-Augmented Generation pipeline</strong></p>
 
   <p>
     <img src="https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi" alt="FastAPI">
     <img src="https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb" alt="MongoDB">
+    <img src="https://img.shields.io/badge/Qdrant-1.10-6600FF?logo=qdrant" alt="Qdrant">
+    <img src="https://img.shields.io/badge/Cohere-395C8C?logo=cohere" alt="Cohere">
+    <img src="https://img.shields.io/badge/OpenAI-412991?logo=openai" alt="OpenAI">
     <img src="https://img.shields.io/badge/Python-3.8+-3776AB?logo=python" alt="Python">
     <img src="https://img.shields.io/badge/LangChain-0.1.20-121212?logo=langchain" alt="LangChain">
   </p>
@@ -12,21 +15,35 @@
 
 ---
 
-## What is Mini RAG?
+## Overview
 
-**Mini RAG** is a FastAPI-based backend that handles the **ingestion** side of a RAG (Retrieval-Augmented Generation) pipeline. It lets you upload documents (TXT / PDF), splits them into overlapping text chunks using LangChain, and stores everything in MongoDB — ready for embedding, retrieval, and LLM querying.
+**Mini RAG** is a complete, production-ready RAG (Retrieval-Augmented Generation) backend. It ingests documents, splits them into chunks, generates embeddings, stores them in a vector database, and answers questions using an LLM — all behind a clean FastAPI interface.
 
-> ⚠️ This project currently covers **ingestion only** (upload → chunk → store). Retrieval and generation layers are not yet implemented.
+| Stage | Status |
+|-------|--------|
+| Document Upload | ✅ |
+| Text Chunking | ✅ |
+| Embedding Generation | ✅ |
+| Vector DB Indexing (Qdrant) | ✅ |
+| Semantic Search | ✅ |
+| RAG Answer Generation | ✅ |
+| Multi-Provider LLM | ✅ |
 
 ---
 
 ## Features
 
-- **File upload** — Upload TXT and PDF files (max 16 MB configurable)
-- **Smart chunking** — LangChain's `RecursiveCharacterTextSplitter` with configurable chunk size / overlap
-- **Async & fast** — Built on FastAPI + Motor (async MongoDB driver) + aiofiles
-- **Project isolation** — Files and chunks are grouped by `project_id`
-- **Reset support** — Re-process a document without duplicating chunks
+- **File Upload** — Upload TXT and PDF files (configurable max size)
+- **Intelligent Chunking** — LangChain's `RecursiveCharacterTextSplitter` with adjustable chunk size / overlap
+- **Embedding Generation** — Built-in support for Cohere and OpenAI embedding models
+- **Vector Database** — Qdrant for efficient similarity search (configurable distance method)
+- **Semantic Search** — Find relevant document chunks by meaning, not keywords
+- **RAG Answers** — Generate contextual answers using retrieved chunks + LLM prompt templates
+- **Pluggable Providers** — Swap between OpenAI and Cohere for both generation and embedding
+- **Multi-Language Templates** — Prompt templates in English and Arabic (easily extensible)
+- **Project Isolation** — All data (files, chunks, vectors) grouped by `project_id`
+- **Reset Support** — Re-process or re-index documents without duplication
+- **Async Throughout** — FastAPI + Motor (async MongoDB) + aiofiles for non-blocking I/O
 - **Dockerized DB** — MongoDB 7 runs in a container via docker-compose
 
 ---
@@ -34,19 +51,57 @@
 ## Architecture
 
 ```
-Upload File ──► Validate ──► Save to Disk ──► Create Asset Record
-                                                  │
-                                                  ▼
-Process Endpoint ──► Load File (LangChain) ──► Split into Chunks ──► Store in MongoDB
+                   ┌─────────────────────────────┐
+                   │       Client / User          │
+                   └──────────┬──────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   FastAPI Server   │
+                    │  (Uvicorn + ASGI)  │
+                    └────┬──────┬───────┘
+                         │      │
+              ┌──────────▼┐  ┌──▼────────────┐
+              │   MongoDB  │  │    Qdrant     │
+              │  (Motor)   │  │  (Vector DB)  │
+              └─────┬─────┘  └──────┬─────────┘
+                    │               │
+         ┌──────────▼───────────────▼──────────┐
+         │        LLM Providers (Cohere/OpenAI)│
+         │  ┌──────────────────────────────┐   │
+         │  │  Embedding Model             │   │
+         │  │  Generation Model            │   │
+         │  └──────────────────────────────┘   │
+         └─────────────────────────────────────┘
 ```
 
-| Layer        | Technology                          |
-|-------------|-------------------------------------|
-| API         | FastAPI + Uvicorn                   |
-| Database    | MongoDB (Motor async driver)        |
+### Pipeline Flow
+
+```
+Upload ──► Validate ──► Save to Disk ──► Asset Record (MongoDB)
+                                                │
+                                                ▼
+Process ──► LangChain Loader ──► Split Text ──► Chunks (MongoDB)
+                                                │
+                                                ▼
+Index ──► Embed Chunks ──► Store Vectors ──► Qdrant Collection
+                                                │
+                                                ▼
+Search/Answer ──► Embed Query ──► Vector Search ──► LLM Generation
+```
+
+### Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| API Framework | FastAPI + Uvicorn |
+| Document Database | MongoDB (Motor async driver) |
+| Vector Database | Qdrant |
 | Document Parsing | LangChain (TextLoader, PyMuPDFLoader) |
-| Text Splitting   | RecursiveCharacterTextSplitter      |
-| Config      | Pydantic Settings + `.env`          |
+| Text Splitting | RecursiveCharacterTextSplitter |
+| Embedding | Cohere / OpenAI |
+| Generation | Cohere / OpenAI |
+| Configuration | Pydantic Settings + `.env` |
+| Containerization | Docker (MongoDB) |
 
 ---
 
@@ -67,44 +122,85 @@ docker-compose up -d
 ### 2. Install dependencies
 
 ```bash
-cd ../src
+cd src
 pip install -r requirments.txt
 ```
 
 ### 3. Configure environment
 
-Copy `.env.example` to `.env` and adjust as needed:
+Copy `src/.env.example` to `src/.env` and customize:
 
 ```env
+# App
 APP_NAME="mini-RAG"
 APP_VERSION="0.1"
-OPENAI_API_KEY=""                     # For future embedding/generation use
 
+# File upload limits
 FILE_ALLOWED_TYPES=["text/plain","application/pdf"]
-FILE_MAX_SIZE=16                      # MB
-FILE_DEFAULT_CHUNK_SIZE=512000        # Bytes for upload streaming
+FILE_MAX_SIZE=16                          # MB
+FILE_DEFAULT_CHUNK_SIZE=512000            # Bytes for upload streaming
 
+# MongoDB
 MONGODB_URL="mongodb://admin:admin@localhost:27017"
 MONGODB_DATABASE="mini-rag"
+
+# LLM Backend (Cohere or OPENAI)
+GENERATION_BACKEND="COHERE"
+EMBEDDING_BACKEND="COHERE"
+
+OPENAI_API_KEY="sk-..."
+COHERE_API_KEY="cohere_..."
+
+GENERATION_MODEL_ID="command-a-03-2025"
+EMBEDDING_MODEL_ID="embed-multilingual-light-v3.0"
+EMBEDDING_MODEL_SIZE=384
+
+# Generation parameters
+INPUT_DEFAULT_MAX_CHARS=1024
+GENERATION_DEFAULT_MAX_TOKENS=200
+GENERATION_DEFAULT_TEMPERATURE=0.1
+
+# Vector Database
+VECTOR_DB_BACKEND="QDRANT"
+VECTOR_DB_PATH="qdrant_db"
+VECTOR_DB_DISTANCE_METHOD="cosine"
+
+# Templates
+DEFAULT_LANGUAGE="en"
 ```
 
 ### 4. Run the server
 
 ```bash
+cd src
 uvicorn main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`.
+The API is available at `http://localhost:8000`.
 
 ---
 
 ## API Reference
 
-### `GET /api/v1/`
+### Health
 
-Health check — returns app name and version.
+#### `GET /api/v1/`
 
-### `POST /api/v1/data/upload/{project_id}`
+Returns the application name and version.
+
+```json
+{
+  "message": "Hello Landing Page!",
+  "app_name": "mini-RAG",
+  "app_version": "0.1"
+}
+```
+
+---
+
+### Ingestion
+
+#### `POST /api/v1/data/upload/{project_id}`
 
 Upload a file (TXT or PDF) to a project.
 
@@ -117,18 +213,18 @@ Upload a file (TXT or PDF) to a project.
 ```json
 {
   "signal": "File upload Succeed",
-  "file_id": "abc123_test.txt"
+  "file_id": "abc123def456_my_document.pdf"
 }
 ```
 
-### `POST /api/v1/data/process/{project_id}`
+#### `POST /api/v1/data/process/{project_id}`
 
-Process an uploaded file into text chunks.
+Split an uploaded file into overlapping text chunks.
 
 **Request body:**
 ```json
 {
-  "file_id": "abc123_test.txt",
+  "file_id": "abc123def456_my_document.pdf",
   "chunck_size": 100,
   "overlap_size": 20,
   "do_reset": 0
@@ -137,16 +233,108 @@ Process an uploaded file into text chunks.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `file_id` | string | — | The file to process |
-| `chunck_size` | int | 100 | Chunk size (characters) |
-| `overlap_size` | int | 20 | Overlap between chunks |
+| `file_id` | string | — | Specific file to process (omit to process all) |
+| `chunck_size` | int | 100 | Chunk size in characters |
+| `overlap_size` | int | 20 | Overlap between consecutive chunks |
 | `do_reset` | int | 0 | Set to `1` to delete existing chunks first |
 
 **Response:**
 ```json
 {
   "signal": "File Processing SUCESS",
-  "inserted_chunks": 15
+  "inserted_chunks": 15,
+  "processed_files": 1
+}
+```
+
+---
+
+### Vector Indexing
+
+#### `POST /api/v1/nlp/index/push/{project_id}`
+
+Embed all chunks for a project and store them in Qdrant.
+
+**Request body:**
+```json
+{
+  "do_reset": 0
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `do_reset` | int | 0 | Set to `1` to reset the vector collection before indexing |
+
+**Response:**
+```json
+{
+  "signal": "Done inserting into Vector DB",
+  "inserted_items_count": 15
+}
+```
+
+#### `GET /api/v1/nlp/index/info/{project_id}`
+
+Retrieve information about a project's vector collection.
+
+**Response:**
+```json
+{
+  "signal": "Vector DB Collection Retrived",
+  "collection_info": { ... }
+}
+```
+
+---
+
+### Search & Generation
+
+#### `POST /api/v1/nlp/index/search/{project_id}`
+
+Semantic search: find relevant chunks for a query.
+
+**Request body:**
+```json
+{
+  "text": "What is this document about?",
+  "limit": 5
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `text` | string | — | The search query |
+| `limit` | int | 5 | Maximum number of results |
+
+**Response:**
+```json
+{
+  "signal": "Done searching in Vector DB",
+  "results": [
+    {
+      "text": "...",
+      "score": 0.89,
+      ...
+    }
+  ]
+}
+```
+
+#### `POST /api/v1/nlp/index/answer/{project_id}`
+
+Full RAG pipeline: search relevant chunks and generate an answer using the configured LLM.
+
+**Request body:**
+(Same as search — `text` and `limit`)
+
+**Response:**
+```json
+{
+  "signal": "Done generating The RAG Answer",
+  "answer": "The document discusses...",
+  "full_prompt": "...",
+  "chat_history": [...]
 }
 ```
 
@@ -158,51 +346,94 @@ Process an uploaded file into text chunks.
 mini_RAG/
 ├── docker/
 │   ├── docker-compose.yml          # MongoDB 7 container
+│   ├── .env                        # Docker credentials
 │   └── .env.example
 ├── src/
-│   ├── main.py                     # FastAPI entry point
+│   ├── main.py                     # FastAPI entry point + startup wiring
 │   ├── .env                        # Environment configuration
 │   ├── requirments.txt             # Python dependencies
 │   ├── helpers/
-│   │   └── config.py               # Settings (pydantic-settings)
+│   │   └── config.py               # Settings via pydantic-settings
 │   ├── routes/
-│   │   ├── base.py                 # GET /api/v1/
+│   │   ├── base.py                 # GET /api/v1/ health check
 │   │   ├── data.py                 # Upload & process endpoints
+│   │   ├── nlp.py                  # Index, search & answer endpoints
 │   │   └── schemes/
-│   │       └── data.py             # Request schemas
+│   │       ├── data.py             # Process request schema
+│   │       └── nlp.py              # Push & search request schemas
 │   ├── controllers/
-│   │   ├── BaseController.py       # Shared utilities
+│   │   ├── BaseController.py       # Shared utilities (paths, random strings)
 │   │   ├── DataController.py       # File validation & naming
 │   │   ├── ProjectController.py    # Project directory management
-│   │   └── ProccesController.py    # LangChain loading & chunking
+│   │   ├── ProccesController.py    # LangChain loading & chunking
+│   │   └── NLPController.py        # Embedding, vector DB ops, RAG pipeline
 │   ├── models/
 │   │   ├── BaseDataModel.py        # Base MongoDB model
 │   │   ├── ProjectModel.py         # Project CRUD
-│   │   ├── ChunkModel.py           # Chunk CRUD
-│   │   ├── AssetModel.py           # Asset CRUD
-│   │   ├── db_schemas/             # Pydantic schemas
-│   │   │   ├── project.py
-│   │   │   ├── data_chunk.py
-│   │   │   └── asset.py
-│   │   └── enums/                  # Constants
+│   │   ├── ChunkModel.py           # Chunk CRUD (paginated, bulk insert)
+│   │   ├── AssetModel.py           # File asset CRUD
+│   │   ├── db_schemas/
+│   │   │   ├── project.py          # Project Pydantic schema
+│   │   │   ├── data_chunk.py       # Chunk & RetrievedDocument schemas
+│   │   │   └── asset.py            # Asset Pydantic schema
+│   │   └── enums/
+│   │       ├── ProcessingEnum.py   # File extension types
+│   │       ├── DataBaseEnum.py     # MongoDB collection names
+│   │       ├── AssetTypeEnum.py    # Asset type constants
+│   │       └── response_enums.py   # API response signals
+│   ├── stores/
+│   │   ├── llm/
+│   │   │   ├── LLMInterface.py     # Abstract LLM provider
+│   │   │   ├── LLMEnums.py         # Provider & role enums
+│   │   │   ├── LLMProviderFactory.py
+│   │   │   └── providers/
+│   │   │       ├── OpenAIProvider.py
+│   │   │       └── CoHereProvider.py
+│   │   ├── vectordb/
+│   │   │   ├── VectortDBInterface.py
+│   │   │   ├── VectorDBProviderFactory.py
+│   │   │   ├── VectorDBEnums.py
+│   │   │   └── providers/
+│   │   │       └── QdrantDBProvider.py
+│   │   └── templates/
+│   │       ├── template_parser.py  # Prompt template parser
+│   │       └── locales/
+│   │           ├── en/rag.py       # English RAG prompts
+│   │           └── ar/rag.py       # Arabic RAG prompts
 │   └── assets/files/               # Uploaded file storage
-└── Report.md
+└── AGENT.md
 ```
 
 ---
 
-## Tech Stack
+## Provider System
 
-| Technology | Purpose |
-|-----------|---------|
-| [FastAPI](https://fastapi.tiangolo.com/) | Async web framework |
-| [Uvicorn](https://www.uvicorn.org/) | ASGI server |
-| [MongoDB 7](https://www.mongodb.com/) + [Motor](https://motor.readthedocs.io/) | Async document database |
-| [LangChain](https://www.langchain.com/) | Document loaders & text splitters |
-| [PyMuPDF](https://pymupdf.readthedocs.io/) | PDF text extraction |
-| [aiofiles](https://github.com/Tinche/aiofiles) | Async file I/O |
-| [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) | Configuration management |
-| [Docker](https://www.docker.com/) | Containerized MongoDB |
+Mini RAG uses a clean factory/interface pattern for both LLMs and vector databases.
+
+### LLM Providers
+
+| Provider | Generation | Embedding |
+|----------|-----------|-----------|
+| **OpenAI** | ✅ GPT models | ✅ text-embedding-* |
+| **Cohere** | ✅ Command models | ✅ embed-* models |
+
+Configure via `GENERATION_BACKEND` and `EMBEDDING_BACKEND` in `.env`.
+
+### Vector DB Providers
+
+| Provider | Status |
+|----------|--------|
+| **Qdrant** | ✅ Fully supported |
+
+Configure via `VECTOR_DB_BACKEND` in `.env`.
+
+### Template System
+
+RAG prompts are defined as modular templates in `stores/templates/locales/{lang}/rag.py`. Currently supports:
+- **English** (`en`)
+- **Arabic** (`ar`)
+
+Add a new language by creating a new locale directory and implementing the prompt templates.
 
 ---
 
@@ -218,18 +449,27 @@ aiofiles==23.2.1
 langchain==0.1.20
 PyMuPDF==1.24.3
 motor==3.4.0
+openai==1.75.0
+cohere==5.5.8
+qdrant-client==1.10.1
 ```
 
 ---
 
-## Planned / Missing Pieces
+## Roadmap
 
-- [ ] Embedding generation (OpenAI / local models)
-- [ ] Vector storage (e.g., MongoDB Atlas Vector Search or pgvector)
-- [ ] Retrieval endpoint — find relevant chunks for a query
-- [ ] Generation endpoint — LLM answer based on retrieved chunks
+- [x] Document upload (TXT, PDF)
+- [x] Text chunking with LangChain
+- [x] MongoDB storage for chunks & assets
+- [x] Embedding generation (Cohere / OpenAI)
+- [x] Vector database indexing (Qdrant)
+- [x] Semantic search
+- [x] RAG answer generation
 - [ ] File type expansion (DOCX, Markdown, HTML)
 - [ ] Authentication & rate limiting
+- [ ] Streaming responses
+- [ ] Web UI / playground
+- [ ] Alternative vector DBs (pgvector, Pinecone, Weaviate)
 
 ---
 

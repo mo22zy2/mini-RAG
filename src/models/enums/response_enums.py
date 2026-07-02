@@ -18,3 +18,7 @@ class Response(Enum):
     VECTORDB_COLLECTION_RETREIVED="Vector DB Collection Retrived"
     SEARCH_IN_VECTOR_DB_ERROR="Error while searching in Vector DB"
     SEARCH_IN_VECTOR_DB_SUCCESS="Done searching in Vector DB"
+    RAG_ANSWER_ERROR="Error while generating The RAG Answer"
+    RAG_ANSWER_SUCCEED="Done generating The RAG Answer"
+    
+    

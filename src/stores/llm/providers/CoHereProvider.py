@@ -22,7 +22,7 @@ class CoHereProvider(LLMInterface):
         self.embedding_size=None
         self.logger = logging.getLogger(__name__) #Get a logger for this class (specific to this module)
          
-         
+        self.enums=CoHereEnums
         self.client = cohere.Client(self.api_key)
          
          
