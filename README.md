@@ -6,9 +6,8 @@
     <img src="https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi" alt="FastAPI">
     <img src="https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb" alt="MongoDB">
     <img src="https://img.shields.io/badge/Qdrant-1.10-6600FF?logo=qdrant" alt="Qdrant">
-    <img src="https://img.shields.io/badge/Cohere-395C8C?logo=cohere" alt="Cohere">
-    <img src="https://img.shields.io/badge/OpenAI-412991?logo=openai" alt="OpenAI">
     <img src="https://img.shields.io/badge/Python-3.8+-3776AB?logo=python" alt="Python">
+    <img src="https://img.shields.io/badge/Ollama-000?logo=ollama" alt="Ollama">
     <img src="https://img.shields.io/badge/LangChain-0.1.20-121212?logo=langchain" alt="LangChain">
   </p>
 </div>
@@ -17,7 +16,7 @@
 
 ## Overview
 
-**Mini RAG** is a complete, production-ready RAG (Retrieval-Augmented Generation) backend. It ingests documents, splits them into chunks, generates embeddings, stores them in a vector database, and answers questions using an LLM — all behind a clean FastAPI interface.
+**Mini RAG** is a complete, production-ready RAG (Retrieval-Augmented Generation) backend. It ingests documents, splits them into chunks, generates embeddings, stores them in a vector database, and answers questions using an LLM — all behind a clean FastAPI interface. Works with OpenAI, Cohere, **or local models via Ollama**.
 
 | Stage | Status |
 |-------|--------|
@@ -28,6 +27,9 @@
 | Semantic Search | ✅ |
 | RAG Answer Generation | ✅ |
 | Multi-Provider LLM | ✅ |
+| Template Parser Integration | ✅ |
+
+> **Latest**: Integrated `template_parser` into `NLPController` — all NLP routes now use the template system for prompt rendering.
 
 ---
 
@@ -35,11 +37,12 @@
 
 - **File Upload** — Upload TXT and PDF files (configurable max size)
 - **Intelligent Chunking** — LangChain's `RecursiveCharacterTextSplitter` with adjustable chunk size / overlap
-- **Embedding Generation** — Built-in support for Cohere and OpenAI embedding models
+- **Embedding Generation** — Support for OpenAI, Cohere, and Ollama embedding models
 - **Vector Database** — Qdrant for efficient similarity search (configurable distance method)
 - **Semantic Search** — Find relevant document chunks by meaning, not keywords
 - **RAG Answers** — Generate contextual answers using retrieved chunks + LLM prompt templates
-- **Pluggable Providers** — Swap between OpenAI and Cohere for both generation and embedding
+- **Pluggable Providers** — Swap between OpenAI, Cohere, or Ollama for both generation and embedding
+- **Local-First** — Run entirely offline using local models via Ollama (no API keys required)
 - **Multi-Language Templates** — Prompt templates in English and Arabic (easily extensible)
 - **Project Isolation** — All data (files, chunks, vectors) grouped by `project_id`
 - **Reset Support** — Re-process or re-index documents without duplication
@@ -65,13 +68,13 @@
               │  (Motor)   │  │  (Vector DB)  │
               └─────┬─────┘  └──────┬─────────┘
                     │               │
-         ┌──────────▼───────────────▼──────────┐
-         │        LLM Providers (Cohere/OpenAI)│
-         │  ┌──────────────────────────────┐   │
-         │  │  Embedding Model             │   │
-         │  │  Generation Model            │   │
-         │  └──────────────────────────────┘   │
-         └─────────────────────────────────────┘
+          ┌──────────▼───────────────▼──────────┐
+          │    LLM Providers (OpenAI/Cohere/Ollama)│
+          │  ┌──────────────────────────────┐   │
+          │  │  Embedding Model             │   │
+          │  │  Generation Model            │   │
+          │  └──────────────────────────────┘   │
+          └─────────────────────────────────────┘
 ```
 
 ### Pipeline Flow
@@ -98,8 +101,8 @@ Search/Answer ──► Embed Query ──► Vector Search ──► LLM Genera
 | Vector Database | Qdrant |
 | Document Parsing | LangChain (TextLoader, PyMuPDFLoader) |
 | Text Splitting | RecursiveCharacterTextSplitter |
-| Embedding | Cohere / OpenAI |
-| Generation | Cohere / OpenAI |
+| Embedding | OpenAI / Cohere / Ollama |
+| Generation | OpenAI / Cohere / Ollama |
 | Configuration | Pydantic Settings + `.env` |
 | Containerization | Docker (MongoDB) |
 
@@ -131,41 +134,35 @@ pip install -r requirments.txt
 Copy `src/.env.example` to `src/.env` and customize:
 
 ```env
-# App
 APP_NAME="mini-RAG"
 APP_VERSION="0.1"
 
-# File upload limits
 FILE_ALLOWED_TYPES=["text/plain","application/pdf"]
-FILE_MAX_SIZE=16                          # MB
-FILE_DEFAULT_CHUNK_SIZE=512000            # Bytes for upload streaming
+FILE_MAX_SIZE=16
+FILE_DEFAULT_CHUNK_SIZE=512000
 
-# MongoDB
 MONGODB_URL="mongodb://admin:admin@localhost:27017"
 MONGODB_DATABASE="mini-rag"
 
-# LLM Backend (Cohere or OPENAI)
-GENERATION_BACKEND="COHERE"
-EMBEDDING_BACKEND="COHERE"
+GENERATION_BACKEND="OPENAI"
+EMBEDDING_BACKEND="OPENAI"
 
-OPENAI_API_KEY="sk-..."
-COHERE_API_KEY="cohere_..."
+OPENAI_API_KEY=""
+OPENAI_BASE_URL=""
+COHERE_API_KEY=""
 
-GENERATION_MODEL_ID="command-a-03-2025"
-EMBEDDING_MODEL_ID="embed-multilingual-light-v3.0"
-EMBEDDING_MODEL_SIZE=384
+GENERATION_MODEL_ID="gpt-4o-mini"
+EMBEDDING_MODEL_ID="text-embedding-3-small"
+EMBEDDING_MODEL_SIZE=1536
 
-# Generation parameters
 INPUT_DEFAULT_MAX_CHARS=1024
 GENERATION_DEFAULT_MAX_TOKENS=200
 GENERATION_DEFAULT_TEMPERATURE=0.1
 
-# Vector Database
 VECTOR_DB_BACKEND="QDRANT"
 VECTOR_DB_PATH="qdrant_db"
 VECTOR_DB_DISTANCE_METHOD="cosine"
 
-# Templates
 DEFAULT_LANGUAGE="en"
 ```
 
@@ -416,8 +413,11 @@ Mini RAG uses a clean factory/interface pattern for both LLMs and vector databas
 |----------|-----------|-----------|
 | **OpenAI** | ✅ GPT models | ✅ text-embedding-* |
 | **Cohere** | ✅ Command models | ✅ embed-* models |
+| **Ollama** | ✅ Any GGUF model | ✅ Any embedding model |
 
 Configure via `GENERATION_BACKEND` and `EMBEDDING_BACKEND` in `.env`.
+
+> **Ollama**: Point `OPENAI_BASE_URL` to your Ollama server (e.g. `http://localhost:11434/v1`) and use any Ollama model as `GENERATION_MODEL_ID` / `EMBEDDING_MODEL_ID`. No API keys needed.
 
 ### Vector DB Providers
 
@@ -461,7 +461,7 @@ qdrant-client==1.10.1
 - [x] Document upload (TXT, PDF)
 - [x] Text chunking with LangChain
 - [x] MongoDB storage for chunks & assets
-- [x] Embedding generation (Cohere / OpenAI)
+- [x] Embedding generation (OpenAI / Cohere / Ollama)
 - [x] Vector database indexing (Qdrant)
 - [x] Semantic search
 - [x] RAG answer generation
@@ -470,6 +470,8 @@ qdrant-client==1.10.1
 - [ ] Streaming responses
 - [ ] Web UI / playground
 - [ ] Alternative vector DBs (pgvector, Pinecone, Weaviate)
+- [ ] PostgreSQL + Alembic + SQLAlchemy (replace MongoDB)
+- [ ] Frontend for RAG (chat interface)
 
 ---
 
