@@ -129,6 +129,14 @@ cd src
 pip install -r requirments.txt
 ```
 
+
+### (pyscopg2 Errors on UBuanto)
+```
+
+sudo apt update
+sudo apt install libpq-dev gcc python3-dev
+```
+
 ### 3. Configure environment
 
 Copy `src/.env.example` to `src/.env` and customize:
