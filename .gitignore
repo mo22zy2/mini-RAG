@@ -2,3 +2,4 @@ docker/mongodb/
 Report.md
 AGENT.md
 AGENTS.md
+src/models/db_schemas/mini_rag/alembic.ini

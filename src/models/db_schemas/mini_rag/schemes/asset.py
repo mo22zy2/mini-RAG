@@ -1,27 +1,27 @@
 from sqlalchemy import Index
 
-from .mini_rag_base import SQLAlchmeyBase
-from sqlalchemy import ForeignKey, String, column,Integer,DateTime, func
+from .mini_rag_base import SQLAlchemyBase
+from sqlalchemy import ForeignKey, String, Column,Integer,DateTime, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 import uuid
 
 
-class Asset(SQLAlchmeyBase):
+class Asset(SQLAlchemyBase):
     
     __tablename__='assets'
     
     
-    asset_id=column(Integer,primary_kay=True,autoincrement=True)
-    asset_uuid=column(UUID(True),default=uuid.uuid4,uniqe=True,nullable=False)
+    asset_id=Column(Integer,primary_key=True,autoincrement=True)
+    asset_uuid=Column(UUID(True),default=uuid.uuid4,unique=True,nullable=False)
     
-    asset_name=column(String,nullable=False)
-    asset_type=column(String,nullable=False)
-    asset_size=column(String,nullable=False)
-    asset_config =column(JSONB,nullabale=True)
+    asset_name=Column(String,nullable=False)
+    asset_type=Column(String,nullable=False)
+    asset_size=Column(String,nullable=False)
+    asset_config =Column(JSONB,nullable=True)
     
     
-    asset_project_id=column(Integer,ForeignKey('projects.project_id'),nullable=False)
+    asset_project_id=Column(Integer,ForeignKey('projects.project_id'),nullable=False)
     
     project = relationship('project',back_populates='assets')
     
@@ -30,6 +30,6 @@ class Asset(SQLAlchmeyBase):
         Index('ix_asset_type',asset_type),
     )
     
-    created_at=column(DateTime(timezone=True),server_default=func.now(),nullable=False)
-    updated_at=column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
+    created_at=Column(DateTime(timezone=True),server_default=func.now(),nullable=False)
+    updated_at=Column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
     

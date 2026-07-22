@@ -1,6 +1,6 @@
-from .mini_rag_base import SQLAlchmeyBase
+from .mini_rag_base import SQLAlchemyBase
 
-from .asset import asset
+from .asset import Asset
 
 from .project import Project
 

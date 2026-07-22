@@ -1,32 +1,32 @@
 from openai import BaseModel
 from sqlalchemy import Index
 
-from .mini_rag_base import SQLAlchmeyBase
-from sqlalchemy import ForeignKey, String, column,Integer,DateTime, func
+from .mini_rag_base import SQLAlchemyBase
+from sqlalchemy import ForeignKey, String, Column,Integer,DateTime, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 import uuid
 
 
-class DataChunk(SQLAlchmeyBase):
+class DataChunk(SQLAlchemyBase):
     __tablename__='chunks'
     
-    chunk_id=column(Integer,primary_kay=True,autoincrement=True)
-    chunk_uuid=column(UUID(True),default=uuid.uuid4,uniqe=True,nullable=False)
+    chunk_id=Column(Integer,primary_key=True,autoincrement=True)
+    chunk_uuid=Column(UUID(True),default=uuid.uuid4,unique=True,nullable=False)
         
-    chunk_text=column(String,nullable=False)
-    chunk_metadata=column(String,nullable=True)
-    chunk_order=column(String,nullable=False)
+    chunk_text=Column(String,nullable=False)
+    chunk_metadata=Column(String,nullable=True)
+    chunk_order=Column(String,nullable=False)
     
     
-    chunk_project_id=column(Integer,ForeignKey('projects.project_id'),nullable=False)
-    chunk_asset_id = column(Integer,ForeignKey('assets.asset_id'),nullable=False)
+    chunk_project_id=Column(Integer,ForeignKey('projects.project_id'),nullable=False)
+    chunk_asset_id = Column(Integer,ForeignKey('assets.asset_id'),nullable=False)
     
     project=relationship("Project",back_populates='chunks')
     asset=relationship('Asset',back_populates='chunks')
     
-    created_at=column(DateTime(timezone=True),server_default=func.now(),nullable=False)
-    updated_at=column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
+    created_at=Column(DateTime(timezone=True),server_default=func.now(),nullable=False)
+    updated_at=Column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
     
     
     __table_args__=(
