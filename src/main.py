@@ -25,7 +25,7 @@ async def startup_span():
     
     settings = get_settings()
     
-    postgres_connection=f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PASSWORD}/{settings.POSTGRES_MAIN_DATABASE}"
+    postgres_connection=f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
     app.db_engine=create_async_engine(postgres_connection)
     app.db_client=sessionmaker(
         app.db_engine,class_=AsyncSession,expire_on_commit=False
@@ -66,7 +66,7 @@ async def startup_span():
     )
 
 async def shutdown_span():
-    app.db_engine.dispose()
+    await app.db_engine.dispose()
     app.vectordb_client.disconnect()
     
     

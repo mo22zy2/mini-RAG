@@ -9,10 +9,11 @@ from models import Response
 from .schemes.data import ProccessRequest
 from models.db_schemas import DataChunk,Asset
 from models.enums.AssetTypeEnum import AssetTypeEnum
-from bson import ObjectId  # type: ignore
+
 
 import os
 import aiofiles
+import json
 import logging
 
 logger=logging.getLogger("uvicorn.error")
@@ -26,7 +27,7 @@ data_router = APIRouter(
 
 async def upload_data(
     request:Request,
-    project_id:str,
+    project_id:int,
     file:UploadFile,
     
     app_settings:Settings =Depends(get_settings)):
@@ -80,10 +81,10 @@ async def upload_data(
     asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
     
     asset_resource=Asset(
-        asset_project_id=ObjectId(project.id),
+        asset_project_id=project.project_id,
         asset_name=file_id,
         asset_type=AssetTypeEnum.FILE.value,
-        asset_size=os.path.getsize(file_path),
+        asset_size=str(os.path.getsize(file_path)),
     )
     
     asset_record= await asset_model.create_asset(asset=asset_resource)
@@ -92,7 +93,7 @@ async def upload_data(
     return JSONResponse(
         content={
             "signal":Response.FILE_UPLOAD_SUCCED.value,
-            "file_id":str(asset_record.id),
+            "file_id":str(asset_record.asset_id),
 
         }
     )
@@ -101,7 +102,7 @@ async def upload_data(
     
 @data_router.post("/process/{project_id}")
 
-async def process_endpoint(request:Request,project_id:str,process_request:ProccessRequest):
+async def process_endpoint(request:Request,project_id:int,process_request:ProccessRequest):
     
     chunk_size=process_request.chunck_size
     overlap_size=process_request.overlap_size
@@ -119,7 +120,7 @@ async def process_endpoint(request:Request,project_id:str,process_request:Procce
     
     if process_request.file_id:
         asset_record = await asset_model.get_asset_record(
-            asset_project_id=project.id,
+            asset_project_id=project.project_id,
             asset_name=process_request.file_id
         )
         
@@ -131,7 +132,7 @@ async def process_endpoint(request:Request,project_id:str,process_request:Procce
         }
                             )
         project_file_ids={
-            asset_record.id: asset_record.asset_name
+            asset_record.asset_id: asset_record.asset_name
             
         }
         
@@ -141,11 +142,11 @@ async def process_endpoint(request:Request,project_id:str,process_request:Procce
         asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
 
         project_files = await asset_model.get_all_project_assets(
-    asset_project_id=project.id,
+    asset_project_id=project.project_id,
     asset_type=AssetTypeEnum.FILE.value
 )
         project_file_ids = {
-    record["_id"]: record["asset_name"]
+    record.asset_id: record.asset_name
     for record in project_files
 }
         
@@ -160,7 +161,7 @@ async def process_endpoint(request:Request,project_id:str,process_request:Procce
     chunk_model=await ChunkModel.create_instance(db_client=request.app.db_client)
     
     if do_reset==1:
-        _= await chunk_model.delete_chunk_by_project_id(project_id=ObjectId(project.id))
+        _= await chunk_model.delete_chunk_by_project_id(project_id=project.project_id)
     no_records=0
     no_files=0
     
@@ -190,9 +191,9 @@ async def process_endpoint(request:Request,project_id:str,process_request:Procce
         file_chunks_records = [
             DataChunk(
                 chunk_text=chunk.page_content,
-                chunk_metadata=chunk.metadata,
-                chunk_order=i+1,
-                chunk_project_id=ObjectId(project.id),
+                chunk_metadata=json.dumps(chunk.metadata),
+                chunk_order=str(i+1),
+                chunk_project_id=project.project_id,
                 chunk_asset_id=asset_id
         )
             for i,chunk in enumerate(file_chunks)]

@@ -1,1 +1,1 @@
-from mini_rag.schemes import Project,Asset,DataChunk,RetrivedDocument
+from .mini_rag.schemes import Project,Asset,DataChunk,RetrivedDocument

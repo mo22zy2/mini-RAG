@@ -1,4 +1,4 @@
-from openai import BaseModel
+from pydantic import BaseModel
 from sqlalchemy import Index
 
 from .mini_rag_base import SQLAlchemyBase
@@ -26,7 +26,7 @@ class DataChunk(SQLAlchemyBase):
     asset=relationship('Asset',back_populates='chunks')
     
     created_at=Column(DateTime(timezone=True),server_default=func.now(),nullable=False)
-    updated_at=Column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
+    updated_at=Column(DateTime(timezone=True),default=func.now(),server_default=func.now(),onupdate=func.now(),nullable=False)
     
     
     __table_args__=(

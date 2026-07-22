@@ -4,11 +4,12 @@
 
   <p>
     <img src="https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi" alt="FastAPI">
-    <img src="https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb" alt="MongoDB">
+    <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql" alt="PostgreSQL">
     <img src="https://img.shields.io/badge/Qdrant-1.10-6600FF?logo=qdrant" alt="Qdrant">
     <img src="https://img.shields.io/badge/Python-3.8+-3776AB?logo=python" alt="Python">
     <img src="https://img.shields.io/badge/Ollama-000?logo=ollama" alt="Ollama">
     <img src="https://img.shields.io/badge/LangChain-0.1.20-121212?logo=langchain" alt="LangChain">
+    <img src="https://img.shields.io/badge/Alembic-1.14-EE0000?logo=alembic" alt="Alembic">
   </p>
 </div>
 
@@ -29,7 +30,7 @@
 | Multi-Provider LLM | ✅ |
 | Template Parser Integration | ✅ |
 
-> **Latest**: Integrated `template_parser` into `NLPController` — all NLP routes now use the template system for prompt rendering.
+> **Latest**: Migrated from MongoDB to PostgreSQL + SQLAlchemy (async). All models rewritten with Alembic migrations. Production-ready RAG pipeline with pgvector support.
 
 ---
 
@@ -46,8 +47,9 @@
 - **Multi-Language Templates** — Prompt templates in English and Arabic (easily extensible)
 - **Project Isolation** — All data (files, chunks, vectors) grouped by `project_id`
 - **Reset Support** — Re-process or re-index documents without duplication
-- **Async Throughout** — FastAPI + Motor (async MongoDB) + aiofiles for non-blocking I/O
-- **Dockerized DB** — MongoDB 7 runs in a container via docker-compose
+- **Async Throughout** — FastAPI + SQLAlchemy (async) + asyncpg for non-blocking I/O
+- **Dockerized DB** — pgvector (PostgreSQL 18 with vector extension) runs in a container via docker-compose
+- **Alembic Migrations** — Schema versioning with auto-generation support
 
 ---
 
@@ -58,32 +60,32 @@
                    │       Client / User          │
                    └──────────┬──────────────────┘
                               │
-                    ┌─────────▼─────────┐
-                    │   FastAPI Server   │
-                    │  (Uvicorn + ASGI)  │
-                    └────┬──────┬───────┘
-                         │      │
-              ┌──────────▼┐  ┌──▼────────────┐
-              │   MongoDB  │  │    Qdrant     │
-              │  (Motor)   │  │  (Vector DB)  │
-              └─────┬─────┘  └──────┬─────────┘
-                    │               │
-          ┌──────────▼───────────────▼──────────┐
-          │    LLM Providers (OpenAI/Cohere/Ollama)│
-          │  ┌──────────────────────────────┐   │
-          │  │  Embedding Model             │   │
-          │  │  Generation Model            │   │
-          │  └──────────────────────────────┘   │
-          └─────────────────────────────────────┘
+                     ┌────────▼─────────┐
+                     │   FastAPI Server   │
+                     │  (Uvicorn + ASGI)  │
+                     └────┬──────┬───────┘
+                          │      │
+               ┌──────────▼┐  ┌──▼────────────┐
+               │ PostgreSQL  │  │    Qdrant     │
+               │ (asyncpg)   │  │  (Vector DB)  │
+               └─────┬─────┘  └──────┬─────────┘
+                     │               │
+           ┌──────────▼───────────────▼──────────┐
+           │    LLM Providers (OpenAI/Cohere/Ollama)│
+           │  ┌──────────────────────────────┐   │
+           │  │  Embedding Model             │   │
+           │  │  Generation Model            │   │
+           │  └──────────────────────────────┘   │
+           └─────────────────────────────────────┘
 ```
 
 ### Pipeline Flow
 
 ```
-Upload ──► Validate ──► Save to Disk ──► Asset Record (MongoDB)
+Upload ──► Validate ──► Save to Disk ──► Asset Record (PostgreSQL)
                                                 │
                                                 ▼
-Process ──► LangChain Loader ──► Split Text ──► Chunks (MongoDB)
+Process ──► LangChain Loader ──► Split Text ──► Chunks (PostgreSQL)
                                                 │
                                                 ▼
 Index ──► Embed Chunks ──► Store Vectors ──► Qdrant Collection
@@ -97,14 +99,15 @@ Search/Answer ──► Embed Query ──► Vector Search ──► LLM Genera
 | Layer | Technology |
 |-------|-----------|
 | API Framework | FastAPI + Uvicorn |
-| Document Database | MongoDB (Motor async driver) |
+| Document Database | PostgreSQL 18 (asyncpg) |
 | Vector Database | Qdrant |
 | Document Parsing | LangChain (TextLoader, PyMuPDFLoader) |
 | Text Splitting | RecursiveCharacterTextSplitter |
 | Embedding | OpenAI / Cohere / Ollama |
 | Generation | OpenAI / Cohere / Ollama |
 | Configuration | Pydantic Settings + `.env` |
-| Containerization | Docker (MongoDB) |
+| Containerization | Docker (pgvector) |
+| Migrations | Alembic |
 
 ---
 
@@ -115,29 +118,30 @@ Search/Answer ──► Embed Query ──► Vector Search ──► LLM Genera
 - Python 3.8+
 - Docker & Docker Compose
 
-### 1. Start MongoDB
+### 1. Start pgvector (PostgreSQL 18 + vector extension)
 
 ```bash
 cd docker
 docker-compose up -d
 ```
 
-### 2. Install dependencies
+### 2. Apply database migrations
+
+```bash
+cd src/models/db_schemas/mini_rag
+alembic upgrade head
+```
+
+### 3. Install dependencies
 
 ```bash
 cd src
 pip install -r requirments.txt
 ```
 
+> **Ubuntu**: If `psycopg2` fails, run `sudo apt install libpq-dev gcc python3-dev` first.
 
-### (pyscopg2 Errors on UBuanto)
-```
-
-sudo apt update
-sudo apt install libpq-dev gcc python3-dev
-```
-
-### 3. Configure environment
+### 4. Configure environment
 
 Copy `src/.env.example` to `src/.env` and customize:
 
@@ -149,8 +153,15 @@ FILE_ALLOWED_TYPES=["text/plain","application/pdf"]
 FILE_MAX_SIZE=16
 FILE_DEFAULT_CHUNK_SIZE=512000
 
-MONGODB_URL="mongodb://admin:admin@localhost:27017"
-MONGODB_DATABASE="mini-rag"
+MONGODB_URL=""                    # No longer required — use PostgreSQL
+MONGODB_DATABASE=""
+
+# PostgreSQL
+POSTGRES_USERNAME="postgres"
+POSTGRES_PASSWORD="mo22zy"
+POSTGRES_HOST="localhost"
+POSTGRES_PORT=5432
+POSTGRES_MAIN_DATABASE="mini_rag"
 
 GENERATION_BACKEND="OPENAI"
 EMBEDDING_BACKEND="OPENAI"
@@ -174,7 +185,7 @@ VECTOR_DB_DISTANCE_METHOD="cosine"
 DEFAULT_LANGUAGE="en"
 ```
 
-### 4. Run the server
+### 5. Run the server
 
 ```bash
 cd src
@@ -350,7 +361,7 @@ Full RAG pipeline: search relevant chunks and generate an answer using the confi
 ```
 mini_RAG/
 ├── docker/
-│   ├── docker-compose.yml          # MongoDB 7 container
+│   ├── docker-compose.yml          # pgvector + MongoDB containers
 │   ├── .env                        # Docker credentials
 │   └── .env.example
 ├── src/
@@ -373,17 +384,21 @@ mini_RAG/
 │   │   ├── ProccesController.py    # LangChain loading & chunking
 │   │   └── NLPController.py        # Embedding, vector DB ops, RAG pipeline
 │   ├── models/
-│   │   ├── BaseDataModel.py        # Base MongoDB model
-│   │   ├── ProjectModel.py         # Project CRUD
-│   │   ├── ChunkModel.py           # Chunk CRUD (paginated, bulk insert)
-│   │   ├── AssetModel.py           # File asset CRUD
+│   │   ├── BaseDataModel.py        # Base SQLAlchemy model
+│   │   ├── ProjectModel.py         # Project CRUD (SQLAlchemy)
+│   │   ├── ChunkModel.py           # Chunk CRUD (SQLAlchemy)
+│   │   ├── AssetModel.py           # File asset CRUD (SQLAlchemy)
 │   │   ├── db_schemas/
-│   │   │   ├── project.py          # Project Pydantic schema
-│   │   │   ├── data_chunk.py       # Chunk & RetrievedDocument schemas
-│   │   │   └── asset.py            # Asset Pydantic schema
+│   │   │   └── mini_rag/
+│   │   │       ├── alembic/        # Migration scripts
+│   │   │       ├── schemes/
+│   │   │       │   ├── project.py  # Project ORM model
+│   │   │       │   ├── data_chunks.py  # Chunk + RetrivedDocument ORM models
+│   │   │       │   └── asset.py    # Asset ORM model
+│   │   │       └── alembic.ini     # Alembic config
 │   │   └── enums/
 │   │       ├── ProcessingEnum.py   # File extension types
-│   │       ├── DataBaseEnum.py     # MongoDB collection names
+│   │       ├── DataBaseEnum.py     # Collection names (legacy)
 │   │       ├── AssetTypeEnum.py    # Asset type constants
 │   │       └── response_enums.py   # API response signals
 │   ├── stores/
@@ -445,6 +460,22 @@ Add a new language by creating a new locale directory and implementing the promp
 
 ---
 
+## Recent Changes
+
+### v0.2 — PostgreSQL Migration & Bug Fixes
+
+- **Database**: MongoDB → PostgreSQL 18 (asyncpg + SQLAlchemy 2.0 async)
+- **Migrations**: Added Alembic for schema versioning
+- **Models**: Rewrote `ProjectModel`, `ChunkModel`, `AssetModel` from Motor to SQLAlchemy ORM
+- **Connection string**: Fixed bug using `POSTGRES_PASSWORD` instead of `POSTGRES_PORT`
+- **Shutdown**: Fixed missing `await` on `engine.dispose()`
+- **Config**: Made MongoDB fields optional, all nullable fields use `Optional[...]`
+- **Schemas**: Fixed `relationship()` case, added `default`+`server_default` to `updated_at`
+- **Type fixes**: `ObjectId()` removed from PostgreSQL int PKs, `chunk_metadata` JSON-serialized, `chunk_order`/`asset_size` cast to string
+- **Imports**: Removed dead `bson`/`pymongo` imports, fixed broken module paths
+
+---
+
 ## Dependencies
 
 ```
@@ -456,10 +487,13 @@ pydantic-settings==2.2.1
 aiofiles==23.2.1
 langchain==0.1.20
 PyMuPDF==1.24.3
-motor==3.4.0
 openai==1.75.0
 cohere==5.5.8
 qdrant-client==1.10.1
+sqlalchemy
+asyncpg
+alembic==1.14
+psycopg2==2.9.10
 ```
 
 ---
@@ -468,18 +502,21 @@ qdrant-client==1.10.1
 
 - [x] Document upload (TXT, PDF)
 - [x] Text chunking with LangChain
-- [x] MongoDB storage for chunks & assets
+- [x] PostgreSQL storage for projects, chunks & assets (SQLAlchemy)
 - [x] Embedding generation (OpenAI / Cohere / Ollama)
 - [x] Vector database indexing (Qdrant)
 - [x] Semantic search
 - [x] RAG answer generation
+- [x] Alembic database migrations
 - [ ] File type expansion (DOCX, Markdown, HTML)
 - [ ] Authentication & rate limiting
 - [ ] Streaming responses
 - [ ] Web UI / playground
-- [ ] Alternative vector DBs (pgvector, Pinecone, Weaviate)
-- [ ] PostgreSQL + Alembic + SQLAlchemy (replace MongoDB)
+- [ ] Alternative vector DBs (Pinecone, Weaviate)
 - [ ] Frontend for RAG (chat interface)
+- [ ] Hybrid search (vector + keyword)
+- [ ] Re-ranking (Cohere Rerank / cross-encoder)
+- [ ] Query expansion
 
 ---
 

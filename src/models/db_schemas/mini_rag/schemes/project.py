@@ -1,6 +1,7 @@
 from .mini_rag_base import SQLAlchemyBase
 from sqlalchemy import Column,Integer,DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 import uuid
 
 
@@ -12,5 +13,8 @@ class Project(SQLAlchemyBase):
     project_uuid=Column(UUID(True),default=uuid.uuid4,unique=True,nullable=False)
     
     created_at=Column(DateTime(timezone=True),server_default=func.now(),nullable=False)
-    updated_at=Column(DateTime(timezone=True),onupdate=func.now(),nullable=False)
+    updated_at=Column(DateTime(timezone=True),default=func.now(),onupdate=func.now(),nullable=False)
     
+    
+    chunks = relationship('DataChunk',back_populates='project')
+    assets=relationship("Asset",back_populates='project')

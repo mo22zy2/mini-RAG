@@ -3,7 +3,7 @@ from typing import List
 from ..VectortDBInterface import VectorDBInterface
 from ..VectorDBEnums import VectorDBType, DistanceMethodEnum
 from qdrant_client import models, QdrantClient # type: ignore
-from models.db_schemas.data_chunk import RetrivedDocument
+from models.db_schemas import RetrivedDocument
 import logging
 
 
