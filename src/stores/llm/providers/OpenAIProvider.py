@@ -8,7 +8,7 @@ class OpenAIProvider(LLMInterface):
     def __init__(self,api_key:str ,base_url:str=None,
                  default_max_input_chars:int=1000,
                  default_max_output_tokens:int=1000,
-                 default_temperature:float=0.1):
+                 default_temperature:float=0.8):
         
         self.api_key = api_key
         self.base_url = base_url
@@ -44,7 +44,7 @@ class OpenAIProvider(LLMInterface):
     def generate_text(self, prompt:str,
                     chat_history:list=None,
                     max_output_tokens:int=None,
-                    temperature:float=None):
+                    temperature:float=0.8):
         
         if not self.client:
             self.logger.error("OpenAI client is not initialized.")
@@ -57,13 +57,14 @@ class OpenAIProvider(LLMInterface):
         max_output_tokens = max_output_tokens if max_output_tokens is not None else self.default_max_output_tokens
         temperature = temperature if temperature is not None else self.default_temperature
         
-        chat_history.append(
+        messages = (chat_history or []).copy()
+        messages.append(
             self.construct_prompt(prompt, OpenAIEnums.USER.value)
         )
         
         response = self.client.chat.completions.create(
             model=self.generation_model_id,
-            messages=chat_history,
+            messages=messages,
             max_tokens=max_output_tokens,
             temperature=temperature
         )

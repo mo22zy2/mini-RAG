@@ -53,10 +53,20 @@ async def upload_data(
     file_path,file_id=data_controller.generate_unique_filepath(original_file_name=file.filename,
                                                        project_id=project_id,
                                                        )
+    max_size_bytes = app_settings.FILE_MAX_SIZE * 1048576
+    total_bytes = 0
     try:
         
         async with aiofiles.open(file_path,"wb")as f:
             while chunk := await file.read(app_settings.FILE_DEFAULT_CHUNK_SIZE):
+                total_bytes += len(chunk)
+                if total_bytes > max_size_bytes:
+                    await f.close()
+                    os.remove(file_path)
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"signal":Response.FILE_SIZE_EXCEEDED.value}
+                    )
                 await f.write(chunk)
                 
     except Exception as e:

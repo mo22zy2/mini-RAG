@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings,SettingsConfigDict
 class Settings (BaseSettings):
     APP_NAME:str
     APP_VERSION:str
-    OPENAI_API_KEY:str
     FILE_ALLOWED_TYPES:list
     FILE_MAX_SIZE:int
     FILE_DEFAULT_CHUNK_SIZE:int
@@ -27,7 +26,7 @@ class Settings (BaseSettings):
 
     INPUT_DEFAULT_MAX_CHARS:int=None
     GENERATION_DEFAULT_MAX_TOKENS:int=None
-    GENERATION_DEFAULT_TEMPERATURE:float=None
+    GENERATION_DEFAULT_TEMPERATURE:float=0.8
     
     
     VECTOR_DB_BACKEND:str

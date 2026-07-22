@@ -1,5 +1,5 @@
-from bson import ObjectId # type: ignore
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from bson import ObjectId  # type: ignore
+from pydantic import BaseModel, Field, field_validator, ConfigDict # type: ignore
 from typing import Optional
 
 

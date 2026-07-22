@@ -72,7 +72,7 @@ class QdrantDBProvider(VectorDBInterface):
                 collection_name=collection_name,
                 records=[
                     models.Record(
-                        id=[record_id],
+                        id=record_id,
                         vector=vector,
                         payload={
                                 "text":text,
@@ -100,14 +100,14 @@ class QdrantDBProvider(VectorDBInterface):
         
         
         if metadata is None:
-            metadata=[None]+len(texts)
+            metadata=[None]*len(texts)
             
         if record_ids is None:
             record_ids=list(range(0,len(texts)))
         
         
         for i in range(0,len(texts),batch_size):
-            batch_end=1+batch_size
+            batch_end=i+batch_size
 
             batch_texts=texts[i:batch_end]
             batch_vector=vector[i:batch_end]

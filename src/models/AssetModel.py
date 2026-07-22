@@ -1,4 +1,3 @@
-from models.db_schemas.asset import Asset
 from .BaseDataModel import BaseDataModel
 from .db_schemas import Asset
 from .enums.DataBaseEnum import DataBaseEnum
@@ -33,7 +32,7 @@ class AssetModel(BaseDataModel):
                 )
                 
     async def create_asset(self, asset: Asset):
-        result = await self.collection.insert_one(asset.dict())
+        result = await self.collection.insert_one(asset.model_dump())
         
         asset.id = result.inserted_id
         

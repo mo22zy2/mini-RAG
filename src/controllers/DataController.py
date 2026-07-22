@@ -1,7 +1,7 @@
 from .BaseController import BaseController
-from fastapi import APIRouter,FastAPI,Depends,UploadFile
+from fastapi import UploadFile
 from models import Response
-from .ProjectController import *
+from .ProjectController import ProjectController
 import re
 class DataController(BaseController):
     def __init__(self):
@@ -12,7 +12,7 @@ class DataController(BaseController):
         
         if file.content_type not in self.app_settings.FILE_ALLOWED_TYPES:
             return False,Response.FILE_TYPE_NOT_SUPPORTED.value
-        if file.size > self.app_settings.FILE_MAX_SIZE * self.size_scale:
+        if file.size is not None and file.size > self.app_settings.FILE_MAX_SIZE * self.size_scale:
             return False,Response.FILE_SIZE_EXCEEDED.value
         return True ,Response.FILE_UPLOAD_SUCCED.value
     

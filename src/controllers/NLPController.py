@@ -125,6 +125,7 @@ class NLPController(BaseController):
 
         full_prompt = "\n\n".join([
             documnets_prompts,
+            f"## User Question:\n{query}",
             footer_prompt,
         ])
             
