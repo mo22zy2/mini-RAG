@@ -14,3 +14,5 @@ sqlalchemy
 asyncpg
 alembic==1.14
 psycopg2==2.9.10
+pgvector
+nltk
