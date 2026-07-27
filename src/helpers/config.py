@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings,SettingsConfigDict
-from typing import Optional
+from typing import List, Optional
 
 class Settings (BaseSettings):
     APP_NAME:str
@@ -27,7 +27,7 @@ class Settings (BaseSettings):
 
     COHERE_API_KEY:Optional[str]=None
 
-
+    GENERATION_MODEL_ID_LIST:Optional[List[str]]=None
     GENERATION_MODEL_ID:Optional[str]=None
     EMBEDDING_MODEL_ID:Optional[str]=None
     EMBEDDING_MODEL_SIZE:Optional[int]=None
@@ -38,9 +38,11 @@ class Settings (BaseSettings):
     GENERATION_DEFAULT_TEMPERATURE:float=0.8
     
     
+    VECTOR_DB_BACKEND_LITERAL:Optional[List[str]]=None
     VECTOR_DB_BACKEND:str
     VECTOR_DB_PATH:str
     VECTOR_DB_DISTANCE_METHOD:str
+    VECTOR_DB_PGVEC_INDEX_THRESHOLD:int
     
     DEFAULT_LANGUAGE:str
     
