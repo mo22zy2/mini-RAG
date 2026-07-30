@@ -16,7 +16,7 @@ class DataChunk(SQLAlchemyBase):
         
     chunk_text=Column(String,nullable=False)
     chunk_metadata=Column(String,nullable=True)
-    chunk_order=Column(String,nullable=False)
+    chunk_order=Column(Integer,nullable=False)
     
     
     chunk_project_id=Column(Integer,ForeignKey('projects.project_id'),nullable=False)

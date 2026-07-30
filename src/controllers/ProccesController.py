@@ -85,27 +85,29 @@ class ProcessController(BaseController):
         
         return chunks
     
-    def process_simpler_splitter(self,texts:List[str],metadatas:List[dict],chunk_size:int,splitter_tag:str='\n'):
-        full_text=' '.join(texts)
+    def process_simpler_splitter(self, texts: List[str], metadatas: List[dict], chunk_size: int, splitter_tag: str = '\n'):
+        full_text = ' '.join(texts)
         
-        lines = [doc.strip() for doc in full_text.strip(splitter_tag) if len(doc.strip())>1]
-        chunks=[]
+        lines = [doc.strip() for doc in full_text.split(splitter_tag) if len(doc.strip()) > 1] # Note: changed .strip(splitter_tag) to .split(splitter_tag)
+        chunks = []
         
-        current_chunk=''
+        current_chunk = ''
         
         for line in lines:
-            current_chunk+=line+splitter_tag
+            current_chunk += line + splitter_tag
             
-            if len(chunk_size)>= chunk_size:
+            # FIX: Check the length of current_chunk, not chunk_size
+            if len(current_chunk) >= chunk_size:
                 chunks.append(Document(
-                              page_content=current_chunk.strip(),metadata={}) )
+                              page_content=current_chunk.strip(), metadata={}))
                 
-                current_chunk=''
+                current_chunk = ''
                 
-        if len(chunk_size)>= 0:
+        # FIX: Check if current_chunk has remaining text left over
+        if len(current_chunk) > 0:
             chunks.append(Document(
-                            page_content=current_chunk.strip(),metadata={}) )
+                            page_content=current_chunk.strip(), metadata={}))
             
         return chunks
-                
+
         

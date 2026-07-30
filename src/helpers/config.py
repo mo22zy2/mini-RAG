@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings,SettingsConfigDict
 from typing import List, Optional
+from pathlib import Path
 
 class Settings (BaseSettings):
     APP_NAME:str
@@ -43,11 +44,12 @@ class Settings (BaseSettings):
     VECTOR_DB_PATH:str
     VECTOR_DB_DISTANCE_METHOD:str
     VECTOR_DB_PGVEC_INDEX_THRESHOLD:int
+    VECTOR_DB_INDEX_TYPE:str
     
     DEFAULT_LANGUAGE:str
     
     class Config:
-        env_file='.env'
+        env_file=Path(__file__).parent.parent / '.env'
         
 def get_settings():
     return Settings()

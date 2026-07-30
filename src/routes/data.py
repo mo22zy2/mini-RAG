@@ -206,8 +206,14 @@ async def process_endpoint(request:Request,project_id:int,process_request:Procce
         file_chunks_records = [
             DataChunk(
                 chunk_text=chunk.page_content,
-                chunk_metadata=json.dumps(chunk.metadata),
-                chunk_order=str(i+1),
+                chunk_metadata=json.dumps({
+                    **chunk.metadata,
+                    "asset_id": asset_id,
+                    "file_name": file_id,
+                    "project_id": project.project_id,
+                    "chunk_order": i+1,
+                }),
+                chunk_order=i+1,
                 chunk_project_id=project.project_id,
                 chunk_asset_id=asset_id
         )

@@ -22,6 +22,7 @@ class PgVectorTableSchemaEnums(Enum):
 class PgVectorDistanceMethodEnum(Enum):
     COSINE="vector_cosine_ops"
     DOT="vector_l2_ops"
+    EUCLIDEAN="vector_l2_ops"
 
 class PgVectorIndexTypeEnums(Enum):
     HNSW="hnsw"

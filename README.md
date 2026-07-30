@@ -24,22 +24,22 @@
 | Document Upload | ✅ |
 | Text Chunking | ✅ |
 | Embedding Generation | ✅ |
-| Vector DB Indexing (Qdrant) | ✅ |
+| Vector DB Indexing (Qdrant, pgvector) | ✅ |
 | Semantic Search | ✅ |
 | RAG Answer Generation | ✅ |
 | Multi-Provider LLM | ✅ |
 | Template Parser Integration | ✅ |
 
-> **Latest**: Migrated from MongoDB to PostgreSQL + SQLAlchemy (async). All models rewritten with Alembic migrations. Production-ready RAG pipeline with pgvector support.
+> **Latest**: Added pgvector support alongside Qdrant. Switched from Cohere to OpenAI-compatible Ollama embeddings. Vector index type configurable via `VECTOR_DB_INDEX_TYPE` (HNSW / IVFFLAT). Added `EUCLIDEAN` distance method.
 
 ---
 
 ## Features
 
 - **File Upload** — Upload TXT and PDF files (configurable max size)
-- **Intelligent Chunking** — LangChain's `RecursiveCharacterTextSplitter` with adjustable chunk size / overlap
+- **Text Chunking** — Custom line-based splitter with adjustable chunk size
 - **Embedding Generation** — Support for OpenAI, Cohere, and Ollama embedding models
-- **Vector Database** — Qdrant for efficient similarity search (configurable distance method)
+- **Vector Database** — Qdrant and pgvector (PostgreSQL) with configurable index type (HNSW / IVFFLAT) and distance method (cosine, dot, euclidean)
 - **Semantic Search** — Find relevant document chunks by meaning, not keywords
 - **RAG Answers** — Generate contextual answers using retrieved chunks + LLM prompt templates
 - **Pluggable Providers** — Swap between OpenAI, Cohere, or Ollama for both generation and embedding
@@ -56,41 +56,42 @@
 ## Architecture
 
 ```
-                   ┌─────────────────────────────┐
-                   │       Client / User          │
-                   └──────────┬──────────────────┘
-                              │
-                     ┌────────▼─────────┐
-                     │   FastAPI Server   │
-                     │  (Uvicorn + ASGI)  │
-                     └────┬──────┬───────┘
-                          │      │
-               ┌──────────▼┐  ┌──▼────────────┐
-               │ PostgreSQL  │  │    Qdrant     │
-               │ (asyncpg)   │  │  (Vector DB)  │
-               └─────┬─────┘  └──────┬─────────┘
-                     │               │
-           ┌──────────▼───────────────▼──────────┐
-           │    LLM Providers (OpenAI/Cohere/Ollama)│
-           │  ┌──────────────────────────────┐   │
-           │  │  Embedding Model             │   │
-           │  │  Generation Model            │   │
-           │  └──────────────────────────────┘   │
-           └─────────────────────────────────────┘
+                    ┌─────────────────────────────┐
+                    │       Client / User          │
+                    └──────────┬──────────────────┘
+                               │
+                      ┌────────▼─────────┐
+                      │   FastAPI Server   │
+                      │  (Uvicorn + ASGI)  │
+                      └────┬──────┬───────┘
+                           │      │
+                ┌──────────▼┐  ┌──▼──────────────┐
+                │ PostgreSQL  │  │  PostgreSQL     │
+                │ (asyncpg)   │  │  pgvector       │
+                │ (metadata)  │  │  (vectors)      │
+                └─────────────┘  └─────────────────┘
+                      │               │
+            ┌──────────▼───────────────▼──────────┐
+            │    LLM Providers (OpenAI/Cohere/Ollama)│
+            │  ┌──────────────────────────────┐   │
+            │  │  Embedding Model             │   │
+            │  │  Generation Model            │   │
+            │  └──────────────────────────────┘   │
+            └─────────────────────────────────────┘
 ```
 
 ### Pipeline Flow
 
 ```
 Upload ──► Validate ──► Save to Disk ──► Asset Record (PostgreSQL)
-                                                │
-                                                ▼
-Process ──► LangChain Loader ──► Split Text ──► Chunks (PostgreSQL)
-                                                │
-                                                ▼
-Index ──► Embed Chunks ──► Store Vectors ──► Qdrant Collection
-                                                │
-                                                ▼
+                                                 │
+                                                 ▼
+Process ──► Loader ──► Split Text ──► Chunks (PostgreSQL, with metadata)
+                                                 │
+                                                 ▼
+Index ──► Embed Chunks ──► Store Vectors ──► pgvector / Qdrant
+                                                 │
+                                                 ▼
 Search/Answer ──► Embed Query ──► Vector Search ──► LLM Generation
 ```
 
@@ -99,14 +100,14 @@ Search/Answer ──► Embed Query ──► Vector Search ──► LLM Genera
 | Layer | Technology |
 |-------|-----------|
 | API Framework | FastAPI + Uvicorn |
-| Document Database | PostgreSQL 18 (asyncpg) |
-| Vector Database | Qdrant |
+| Database | PostgreSQL 17 (asyncpg) + pgvector |
+| Vector Database | pgvector / Qdrant |
 | Document Parsing | LangChain (TextLoader, PyMuPDFLoader) |
-| Text Splitting | RecursiveCharacterTextSplitter |
+| Text Splitting | Custom line-based splitter |
 | Embedding | OpenAI / Cohere / Ollama |
 | Generation | OpenAI / Cohere / Ollama |
 | Configuration | Pydantic Settings + `.env` |
-| Containerization | Docker (pgvector) |
+| Containerization | Docker (PostgreSQL) |
 | Migrations | Alembic |
 
 ---
@@ -118,7 +119,7 @@ Search/Answer ──► Embed Query ──► Vector Search ──► LLM Genera
 - Python 3.8+
 - Docker & Docker Compose
 
-### 1. Start pgvector (PostgreSQL 18 + vector extension)
+### 1. Start PostgreSQL (with pgvector)
 
 ```bash
 cd docker
@@ -153,12 +154,9 @@ FILE_ALLOWED_TYPES=["text/plain","application/pdf"]
 FILE_MAX_SIZE=16
 FILE_DEFAULT_CHUNK_SIZE=512000
 
-MONGODB_URL=""                    # No longer required — use PostgreSQL
-MONGODB_DATABASE=""
-
 # PostgreSQL
 POSTGRES_USERNAME="postgres"
-POSTGRES_PASSWORD="mo22zy"
+POSTGRES_PASSWORD=""
 POSTGRES_HOST="localhost"
 POSTGRES_PORT=5432
 POSTGRES_MAIN_DATABASE="mini_rag"
@@ -178,9 +176,11 @@ INPUT_DEFAULT_MAX_CHARS=1024
 GENERATION_DEFAULT_MAX_TOKENS=200
 GENERATION_DEFAULT_TEMPERATURE=0.1
 
-VECTOR_DB_BACKEND="QDRANT"
+VECTOR_DB_BACKEND="PGVECTOR"
 VECTOR_DB_PATH="qdrant_db"
 VECTOR_DB_DISTANCE_METHOD="cosine"
+VECTOR_DB_PGVEC_INDEX_THRESHOLD=150
+VECTOR_DB_INDEX_TYPE="IVFFLAT"
 
 DEFAULT_LANGUAGE="en"
 ```
@@ -447,8 +447,9 @@ Configure via `GENERATION_BACKEND` and `EMBEDDING_BACKEND` in `.env`.
 | Provider | Status |
 |----------|--------|
 | **Qdrant** | ✅ Fully supported |
+| **pgvector** (PostgreSQL) | ✅ Fully supported |
 
-Configure via `VECTOR_DB_BACKEND` in `.env`.
+Configure via `VECTOR_DB_BACKEND` in `.env`. For pgvector, index type (`HNSW` / `IVFFLAT`) and distance method (`cosine`, `dot`, `euclidean`) are configurable.
 
 ### Template System
 
@@ -461,6 +462,16 @@ Add a new language by creating a new locale directory and implementing the promp
 ---
 
 ## Recent Changes
+
+### v0.3 — pgvector Support & Search Fixes
+
+- **pgvector**: Added full PostgreSQL vector support alongside Qdrant. New `PGVectorProvider` with configurable index type (HNSW / IVFFLAT) and distance methods (cosine, dot, euclidean)
+- **Index type config**: `VECTOR_DB_INDEX_TYPE` env var to switch between HNSW and IVFFLAT without code changes
+- **Search bug fix**: `search_vector_db_collection` returns `None` on failure instead of `False` — now properly caught by route's `is None` check
+- **Embedding fix**: Cohere provider returns all embeddings (not just the first one)
+- **Config path fix**: `env_file` resolved relative to `config.py` so it works from any working directory
+- **chunk_order**: Column type changed from `String` to `Integer`
+- **Metadata enrichment**: Chunk records now store `asset_id`, `file_name`, `project_id`, `chunk_order`
 
 ### v0.2 — PostgreSQL Migration & Bug Fixes
 
@@ -504,19 +515,23 @@ psycopg2==2.9.10
 - [x] Text chunking with LangChain
 - [x] PostgreSQL storage for projects, chunks & assets (SQLAlchemy)
 - [x] Embedding generation (OpenAI / Cohere / Ollama)
-- [x] Vector database indexing (Qdrant)
+- [x] Vector database indexing (Qdrant + pgvector)
 - [x] Semantic search
 - [x] RAG answer generation
 - [x] Alembic database migrations
+- [x] pgvector support
+- [x] Configurable index type (HNSW / IVFFLAT)
+- [x] Metadata enrichment for chunks
 - [ ] File type expansion (DOCX, Markdown, HTML)
 - [ ] Authentication & rate limiting
 - [ ] Streaming responses
 - [ ] Web UI / playground
-- [ ] Alternative vector DBs (Pinecone, Weaviate)
 - [ ] Frontend for RAG (chat interface)
 - [ ] Hybrid search (vector + keyword)
 - [ ] Re-ranking (Cohere Rerank / cross-encoder)
 - [ ] Query expansion
+- [ ] Language auto-detection
+- [ ] Cross-encoder reranking
 
 ---
 

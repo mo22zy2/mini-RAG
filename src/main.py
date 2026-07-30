@@ -53,7 +53,7 @@ async def startup_span():
 
 
 
-    app.vectordb_client=await vectordb_provider_factory.create(
+    app.vectordb_client=vectordb_provider_factory.create(
         provider=settings.VECTOR_DB_BACKEND
     )
     
@@ -67,7 +67,7 @@ async def startup_span():
 
 async def shutdown_span():
     await app.db_engine.dispose()
-    app.vectordb_client.disconnect()
+    await app.vectordb_client.disconnect()
     
     
 # app.router.lifespan.on_startup.append(startup_span)

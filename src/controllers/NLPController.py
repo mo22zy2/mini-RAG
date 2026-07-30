@@ -71,7 +71,7 @@ class NLPController(BaseController):
         )
         
         if not vectors or len(vectors)==0:
-            return False
+            return None
         
         
         if isinstance(vectors,list) and len(vectors)>0:
@@ -79,7 +79,7 @@ class NLPController(BaseController):
             
             
         if not query_vector:
-            return False
+            return None
         
         results= await self.vectordb_client.search_by_vector(
             collection_name=collection_name,
@@ -88,7 +88,7 @@ class NLPController(BaseController):
         )
         
         if not results:
-            return False
+            return []
         
         return json.loads(
             json.dumps(results,default=lambda x: x.__dict__)

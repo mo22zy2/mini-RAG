@@ -26,6 +26,7 @@ class VectorDBProviderFactory:
                 distance_method=self.config.VECTOR_DB_DISTANCE_METHOD,
                 default_vector_size=self.config.EMBEDDING_MODEL_SIZE,
                 index_threshold=self.config.VECTOR_DB_PGVEC_INDEX_THRESHOLD,
+                index_type=self.config.VECTOR_DB_INDEX_TYPE,
             )
 
             

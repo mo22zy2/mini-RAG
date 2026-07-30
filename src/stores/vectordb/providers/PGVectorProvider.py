@@ -14,18 +14,23 @@ import logging
 
 class PGVectorProvider(VectorDBInterface):
 
-    # Maps the "friendly" distance method names to the pgvector operator
-    # used in ORDER BY. Adjust the left-hand keys if your
-    # PgVectorDistanceMethodEnum uses different values.
     _DISTANCE_OPERATORS = {
-        PgVectorDistanceMethodEnum.COSINE.value: "<=>",
-        PgVectorDistanceMethodEnum.DOT.value: "<#>",
+        DistanceMethodEnum.COSINE.value: "<=>",
+        DistanceMethodEnum.DOT.value: "<#>",
+        DistanceMethodEnum.EUCLIDEAN.value: "<->",
     }
 
-    def __init__(self, db_client, default_vector_size: int = 786, distance_method: str = None,index_threshold:int=100):
+    _INDEX_OPERATOR_CLASSES = {
+        DistanceMethodEnum.COSINE.value: PgVectorDistanceMethodEnum.COSINE.value,
+        DistanceMethodEnum.DOT.value: PgVectorDistanceMethodEnum.DOT.value,
+        DistanceMethodEnum.EUCLIDEAN.value: PgVectorDistanceMethodEnum.EUCLIDEAN.value,
+    }
+
+    def __init__(self, db_client, default_vector_size: int = 786, distance_method: str = None, index_threshold: int = 100, index_type: str = None):
         self.db_client = db_client
         self.default_vector_size = default_vector_size
         self.distance_method = distance_method or DistanceMethodEnum.COSINE.value
+        self.index_type = index_type or PgVectorIndexTypeEnums.HNSW.value
         self.pgvector_table_prefix = PgVectorTableSchemaEnums._PREFIX.value
         self.logger = logging.getLogger("uvicorn")
         self.default_index_name=lambda collection_name : f'{collection_name}_vector_idx'
@@ -186,7 +191,8 @@ class PGVectorProvider(VectorDBInterface):
                 
                 return bool(results.scalar_one_or_none())
             
-    async def create_vector_index(self,collection_name:str,index_type:str=PgVectorIndexTypeEnums.HNSW.value):
+    async def create_vector_index(self,collection_name:str,index_type:str=None):
+        index_type=index_type or self.index_type
         is_index_exsisted=await self.is_index_exsisted(collection_name=collection_name)
         if is_index_exsisted:
             return False
@@ -204,13 +210,15 @@ class PGVectorProvider(VectorDBInterface):
 
                 index_name=self.default_index_name(collection_name=collection_name)
 
+                operator_class = self._INDEX_OPERATOR_CLASSES.get(self.distance_method, PgVectorDistanceMethodEnum.COSINE.value)
                 create_idx_sql=sql_text(f"CREATE INDEX {index_name} ON {collection_name} "
-                                        f'USING {index_type} ({PgVectorTableSchemaEnums.VECTOR.value} {self.distance_method})')
+                                        f'USING {index_type} ({PgVectorTableSchemaEnums.VECTOR.value} {operator_class})')
                 await session.execute(create_idx_sql)
                 
                 self.logger.info(f"END : Created vector index for collection: {collection_name}")
                 
-    async def reset_vector_index(self,collection_name:str,index_type:str = PgVectorIndexTypeEnums.HNSW.value)->bool:
+    async def reset_vector_index(self,collection_name:str,index_type:str = None)->bool:
+        index_type=index_type or self.index_type
         index_name=self.default_index_name(collection_name=collection_name)
         async with self.db_client() as session:
             async with session.begin():
@@ -277,7 +285,7 @@ class PGVectorProvider(VectorDBInterface):
     async def insert_many(
         self,
         collection_name,
-        vectors,
+        vector,
         texts,
         metadata=None,
         record_ids=None,
@@ -291,14 +299,12 @@ class PGVectorProvider(VectorDBInterface):
             self.logger.error("chunk_id is required.")
             return False
 
-        if len(vectors) != len(record_ids):
+        if len(vector) != len(record_ids):
             self.logger.error(f"Invalid data items for collection: {collection_name}")
             return False
 
         collection_name = self._validate_collection_name(collection_name)
 
-        # Normalize metadata to a per-record list of JSON strings,
-        # rather than turning the whole thing into a single JSON blob.
         if not metadata or len(metadata) == 0:
             metadata = [{}] * len(texts)
         metadata = [json.dumps(m or {},ensure_ascii=False) for m in metadata]
@@ -324,7 +330,7 @@ class PGVectorProvider(VectorDBInterface):
             async with session.begin():
                 for i in range(0, len(texts), batch_size):
                     batch_texts = texts[i:i + batch_size]
-                    batch_vectors = vectors[i:i + batch_size]
+                    batch_vectors = vector[i:i + batch_size]
                     batch_metadata = metadata[i:i + batch_size]
                     batch_record_ids = record_ids[i:i + batch_size]
 
