@@ -1,7 +1,8 @@
 from enum import Enum
 
-class VectorDBType(Enum):
+class VectorDBEnums(Enum):
     QDRANT="QDRANT"
+    PGVECTOR="PGVECTOR"
     
     
 class DistanceMethodEnum(Enum):

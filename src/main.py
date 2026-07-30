@@ -37,7 +37,7 @@ async def startup_span():
     
     
     llm_provider_factory = LLMProviderFactory(config=settings)
-    vectordb_provider_factory= VectorDBProviderFactory(config=settings)
+    vectordb_provider_factory= VectorDBProviderFactory(config=settings,db_client=app.db_client)
     
     app.generation_client=llm_provider_factory.create_provider(provider=settings.GENERATION_BACKEND)
     app.generation_client.set_generation_model(model_id=settings.GENERATION_MODEL_ID)
@@ -53,11 +53,11 @@ async def startup_span():
 
 
 
-    app.vectordb_client= vectordb_provider_factory.create(
+    app.vectordb_client=await vectordb_provider_factory.create(
         provider=settings.VECTOR_DB_BACKEND
     )
     
-    app.vectordb_client.connect()
+    await app.vectordb_client.connect()
     
     
     app.template_parser=Template_Parser(

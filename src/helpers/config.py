@@ -27,7 +27,7 @@ class Settings (BaseSettings):
 
     COHERE_API_KEY:Optional[str]=None
 
-    GENERATION_MODEL_ID_LIST:Optional[List[str]]=None
+    GENERATION_MODEL_ID_LIST:Optional[str]=None
     GENERATION_MODEL_ID:Optional[str]=None
     EMBEDDING_MODEL_ID:Optional[str]=None
     EMBEDDING_MODEL_SIZE:Optional[int]=None

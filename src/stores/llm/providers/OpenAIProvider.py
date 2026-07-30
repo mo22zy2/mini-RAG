@@ -1,6 +1,7 @@
 from ..LLMInterface import LLMInterface
 from ..LLMEnums import OpenAIEnums
-from openai import OpenAI # type: ignore
+from openai import OpenAI
+from typing import Union, List
 import logging
 
 class OpenAIProvider(LLMInterface):
@@ -75,7 +76,7 @@ class OpenAIProvider(LLMInterface):
         
         return response.choices[0].message.content
 
-    def embed_text(self, text:str, document_type:str=None):
+    def embed_text(self, text:Union[str,List[str]], document_type:str=None):
         
         if not self.client:
             
@@ -86,6 +87,9 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("Embedding model ID is not set. Please set it using set_embedding_model().")
             return None
         
+        if isinstance(text,str):
+            text=[text]
+        
         response = self.client.embeddings.create(model=self.embedding_model_id, 
                                                     input=text)
         
@@ -93,7 +97,7 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("No embedding returned from OpenAI API.")
             return None
         
-        return response.data[0].embedding
+        return [rec.embedding for rec in response.data]
     
     
     def construct_prompt(self,prompt:str,role:str):
